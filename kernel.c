@@ -55,7 +55,7 @@ void puts(char *s)
 #define PATH_MAX   32 /* Longest absolute path */
 #define PIPE_LIMIT (TASK_LIMIT * 2)
 
-#define PATHSERVER_FD (TASK_LIMIT + 3) 
+#define PATHSERVER_FD (TASK_LIMIT + 3)
 	/* File descriptor of pipe to pathserver */
 
 #define PRIORITY_DEFAULT 20
@@ -105,7 +105,7 @@ struct task_control_block {
     struct task_control_block  *next;
 };
 
-/* 
+/*
  * pathserver assumes that all files are FIFOs that were registered
  * with mkfifo.  It also assumes a global tables of FDs shared by all
  * processes.  It would have to get much smarter to be generally useful.
@@ -366,8 +366,8 @@ void first()
 	if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
 	if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
 	if (!fork()) rs232_xmit_msg_task();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task1();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task2();
+	// if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task1();
+	// if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task2();
 	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_readwrite_task();
 
 	setpriority(0, PRIORITY_LIMIT);
