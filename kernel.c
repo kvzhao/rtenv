@@ -1,8 +1,6 @@
 #include "stm32f10x.h"
 #include "RTOSConfig.h"
-
 #include "syscall.h"
-
 #include <stddef.h>
 
 void *memcpy(void *dest, const void *src, size_t n);
@@ -59,12 +57,12 @@ void putc(char c)
 void my_print(char *msg)
 {
     int fdout = mq_open("/tmp/mqueue/out", 0);
-
     if (!msg) {
         return;
     }
     write(fdout, msg, strlen(msg) + 0);
 }
+
 
 #define STACK_SIZE 512 /* Size of task stacks in words */
 #define TASK_LIMIT 8  /* Max number of tasks we can handle */
@@ -347,23 +345,26 @@ void shell_serial_read()
         do {
             // read a character
             read(fdin, &ch, 1);
-            /* press enter */
-            if(ch == '\r') {
-               // putc('\n');
-                putc('\r');
-            }
-            /* press backspace */
-            else if( ch == 0x7f ) {
-                if( (char_cnt--) > 0 ) {
-                putc('\b');
-                putc(' ');
-                putc('\b');
-                continue;
-                }
-            }
-            /* expected enter */
-            else {
-                putc(ch);
+
+            switch( ch )
+            {
+                // press enter
+                case '\r' :
+                    putc('\r');
+                    break;
+                // press backspace
+                case 0x7f :
+                    if ((char_cnt--) >0 ) {
+                        putc('\b');
+                        putc(' ');
+                        putc('\b');
+                        continue;
+                    }
+                    break;
+                // expected enter
+                default :
+                    putc(ch);
+                    break;
             }
 
 			/* If the byte is an end-of-line type character, then
@@ -381,14 +382,60 @@ void shell_serial_read()
 
         } while(!done);
         // command processing
-        //
+        cmd_proc(str,char_cnt);
+
         // New Line
         my_print("\n\rShell > ");
     }
 }
 
+typedef void (*cmd_func_t)(void);
+struct cmd
+{
+    const char *name; // the name user could call
+    const char *disp; // info display when command is called
+    cmd_func_t handler;
+};
+
+// functions declaration
+//static void hello_cmd(void);
+static void help_cmd(void);
+// static void ps_cmd(void);
+typedef struct cmd cmd_t;
+
+static cmd_t shell_cmds[] = {
+    {
+        .name = "help",
+        .disp = "This",
+        .handler = help_cmd
+    }
+};
+
+static void help_cmd( void )
+{
+    int i;
+    my_print("\n\rrtenv provides commands:\n");
+    /*
+    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);++i ) {
+        my_print('\r');
+        my_print(shell_cmds[i].name);
+        my_print('\n');
+    }*/
+}
+
 void cmd_proc(char* str, int char_cnt)
 {
+    int i;
+    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);++i ) {
+        // compare user's input string with shell commands' name
+        if ( strncmp(str, shell_cmds[i], strlen(shell_cmds[i].name)) == 0 ) {
+            if (str[strlen(shell_cmds[i].name)] != '\n' )
+                continue;
+            shell_cmds[i].handler();
+            return;
+        }
+    }
+    my_print("\n\rCommands not found.\n");
 }
 
 void shell()
