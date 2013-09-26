@@ -2,6 +2,7 @@
 #include "RTOSConfig.h"
 #include "syscall.h"
 #include <stddef.h>
+#include <stdarg.h>
 
 void *memcpy(void *dest, const void *src, size_t n);
 
@@ -47,6 +48,14 @@ void puts(char *s)
 	}
 }
 
+void my_puts( char *s)
+{
+    int fdout = mq_open("/tmp/mqueue/out",0);
+    if (!s)
+        return;
+    write(fdout, s, strlen(s)+1);
+}
+
 void putc(char c)
 {
     USART_SendData(USART2, c);
@@ -61,6 +70,37 @@ void my_print(char *msg)
         return;
     }
     write(fdout, msg, strlen(msg) + 0);
+}
+// The self-defined printf() refer to the programmer zzz0072 on github
+void my_printf(const char *msg, ...)
+{
+    va_list param = {0};
+
+    char *param_str =0;
+    char  param_char[] = {0,0};
+    int   param_int =0;
+
+    char *str_to_output = 0;
+    int   curr_char  = 0;
+    int   fdout = mq_open("/tmp/mqueue/out", 0);
+
+    va_start(param, msg);
+
+    // Parsing the input string
+    while (msg[curr_char]) {
+        // regular characters
+        if ( msg[curr_char++] != '%') {
+            param_char[0] = msg[curr_char-1];
+            str_to_output = param_char;
+
+        } // end of if ( msg[curr_char++] != '%')
+        else {
+            curr_char++;
+        }
+        my_puts(str_to_output);
+    } // end of while (msg[curr_char] != '$')
+
+    va_end(param);
 }
 
 
@@ -338,7 +378,7 @@ void shell_serial_read()
     int char_cnt; // character counts
 
     fdout = mq_open("/tmp/mqueue/out", 0);
-    fdin = open("/dev/tty0/in", 0);
+    fdin  = open("/dev/tty0/in", 0);
 
     while(1) {
         done = 0;
@@ -350,16 +390,21 @@ void shell_serial_read()
             {
                 // press enter
                 case '\r' :
+//                    my_printf("\n\r");
+//                   putc('\n');
                     putc('\r');
+                //    my_puts('\r');
                     break;
                 // press backspace
                 case 0x7f :
                     if ((char_cnt--) >0 ) {
+                        //my_printf("\b \b");
                         putc('\b');
                         putc(' ');
                         putc('\b');
-                        continue;
+//                        continue;
                     }
+                    continue;
                     break;
                 // expected enter
                 default :
@@ -371,6 +416,7 @@ void shell_serial_read()
 			 * finish the string and indicate we are done.
 			 */
 			if (char_cnt >= 98 || (ch == '\r') || (ch == '\n')) {
+                // str[char_cnt] = '\n';
 				str[char_cnt++] = '\0';
 				done = -1;
 				/* Otherwise, add the character to the
@@ -382,10 +428,11 @@ void shell_serial_read()
 
         } while(!done);
         // command processing
-        cmd_proc(str,char_cnt);
+//        cmd_proc(str,char_cnt);
 
         // New Line
-        my_print("\n\rShell > ");
+        //my_print("\n\rShell > ");
+        my_printf("\n\rShell > ");
     }
 }
 
@@ -435,12 +482,12 @@ void cmd_proc(char* str, int char_cnt)
             return;
         }
     }
-    my_print("\n\rCommands not found.\n");
+    my_printf("\rCommands not found.\n");
 }
 
 void shell()
 {
-    my_print("\n\rShell > ");
+    my_printf("\r\nShell > ");
     shell_serial_read();
 }
 void first()
