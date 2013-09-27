@@ -71,6 +71,39 @@ void my_print(char *msg)
     }
     write(fdout, msg, strlen(msg) + 0);
 }
+// The implementation of itoa() refer to jserv provided on fb
+static char* itoa_base(int val, int base)
+{
+    static char buf[32] = {0};
+    char is_minus = 0;
+    int i = 30;
+
+    // Special case
+    if ( val == 0 ) {
+        buf[1] = '0';
+        return &buf[1];
+    }
+
+    if ( val < 0 ) {
+        val = -val;
+        is_minus = 1 ;
+    }
+
+    // general cases
+    for (; val && (i-1);--i, val /=base)
+        buf[i] = "0123456789abcdef"[val % base];
+
+    // if the val is negative
+    if (is_minus) {
+        buf[i] = '-';
+        return &buf[i];
+    }
+    return &buf[i+1];
+}
+// MACRO function of itoa
+#define itoa(val) itoa_base(val, 10)
+#define htoa(val) itoa_base(val, 16)
+
 // The self-defined printf() refer to the programmer zzz0072 on github
 void my_printf(const char *msg, ...)
 {
@@ -95,11 +128,34 @@ void my_printf(const char *msg, ...)
 
         } // end of if ( msg[curr_char++] != '%')
         else {
+            switch( msg[curr_char] )
+            {
+                case 's' :
+                    {
+                        str_to_output = va_arg(param, char*);
+                    }
+                    break;
+                case 'd':
+                    {
+                        param_int = va_arg(param, char*);
+                        str_to_output = itoa(param_int);
+                    }
+                    break;
+                case 'c' :
+                    {
+                        param_char[0] = (char) va_arg(param,int);
+                        str_to_output = param_char;
+                    }
+                default:
+                    {
+                        param_char[0] = msg[curr_char];
+                        str_to_output = param_char;
+                    }
+            } // end of switch (msg[])
             curr_char++;
         }
         my_puts(str_to_output);
     } // end of while (msg[curr_char] != '$')
-
     va_end(param);
 }
 
