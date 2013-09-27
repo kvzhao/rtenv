@@ -481,36 +481,24 @@ void shell_serial_read()
 			} else {
             switch( ch )
 		    {
-		        // press enter
-		     /*
-		        case '\r' :
-	//                    my_printf("\n\r");
-	//                   putc('\n');
-		            putc('\r');
-		        //    my_puts('\r');
-		            break;
-		            */
-		        // press backspace
-		        case 0x7f :
-		            if (char_cnt > 0) {
-		                char_cnt--;
-		                my_printf("\b \b");
-		                continue;
-		            }
-		            break;
-		        // expected enter
-		        default :
-		            putc(ch);
-                    str[char_cnt] = ch;
-		            char_cnt++;
-		            break;
-		    }
-                    //str[char_cnt] = ch;
-                    //putc(str[char_cnt]);
-                }
-
+    		        // press backspace
+		            case 0x7f :
+		                if (char_cnt > 0) {
+		                    char_cnt--;
+	    	                my_printf("\b \b");
+    		                continue;
+		                }
+		                break;
+		            // expected enter
+		            default :
+	    	            putc(ch);
+                        str[char_cnt] = ch;
+		                char_cnt++;
+		                break;
+		        }
+             }
         } while(!done);
-        // command processing
+
         cmd_proc(str,char_cnt);
         // New Line
         my_printf("\n\rShell > ");
@@ -572,6 +560,16 @@ static void hello_cmd(void)
 
 static void echo_cmd()
 {
+    int fdout, fdin;
+    char str[100];
+    char ch;
+    int done;
+    int char_cnt; // character counts
+
+    fdout = mq_open("/tmp/mqueue/out", 0);
+    fdin  = open("/dev/tty0/in", 0);
+
+    read(fdin, &ch, 1);
 }
 
 static void ps_cmd()
@@ -594,16 +592,42 @@ static void ps_cmd()
 void cmd_proc(char* str, int char_cnt)
 {
     int i;
-    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);i++ ) {
-        // compare user's input string with shell commands' name
-        if ( strncmp(str, shell_cmds[i].name, strlen(shell_cmds[i].name)) == 0 ) {
-            if (str[strlen(shell_cmds[i].name)] != '\n' ) {
-                continue;
-            }
-            // Call function handle
-            shell_cmds[i].handler();
-            return;
+    char cmd_buf[10]; // the array could be smaller
+    int ind_space =0; // index of the first space
+    char *pecho = 0;
+
+    // The function parse the string, then find the corresponding function handle
+    // 1) corp the first segment with space, front part is instruction
+    //    the second part is the following message
+    // 2) dealing with echo()
+    //
+    // find the space
+    for ( ;str[ind_space] != '\n'; ind_space++) {
+        if (str[ind_space] == ' ') {
+            ind_space++;
+            break;
+        } else {
+            cmd_buf[ind_space] = str[ind_space];
         }
+    }
+    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);i++ ) {
+     // compare user's input string with shell commands' name
+         if ( strncmp(cmd_buf, shell_cmds[i].name, strlen(shell_cmds[i].name)) == 0 ) {
+             // Handling Echo
+             if (shell_cmds[i].name == "echo"){
+                pecho = &str[ind_space];
+                my_printf("\r\n%s", pecho);
+             } else
+                 // if the cmd follows message
+                 if ( ind_space+1 != strlen(str) ){
+                my_printf("\r\n\033[1;31mUnknown message of %s.\033[0m",shell_cmds[i].name);
+                // Now, the shell do not handle any following message except echo()
+                // but in the future, we could implement it and handle instruction like ps aux
+             } else {
+                shell_cmds[i].handler();
+             }
+             return;
+         }
     }
     my_printf("\r\n\033[1;31mCommands not found.\033[0m");
 }
