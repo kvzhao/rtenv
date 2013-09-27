@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+#define TRUE  (1)
+#define FALSE (0)
+
 void *memcpy(void *dest, const void *src, size_t n);
 
 int strcmp(const char *a, const char *b) __attribute__ ((naked));
@@ -201,6 +204,10 @@ static char* get_task_status(int tsk_status)
 #define S_IMSGQ 2
 
 #define O_CREAT 4
+
+
+#define BACKSPACE (127)
+#define ESC        (27)
 
 /* Stack struct of user thread, see "Exception entry and return" */
 struct user_thread_stack {
@@ -463,12 +470,36 @@ void shell_serial_read()
 
     my_printf("\r\nShell > ");
 
+    char is_esc_pressed = FALSE;
+
     while(1) {
         done = 0;
         char_cnt = 0;
         do {
             // read a character
             read(fdin, &ch, 1);
+
+            // Neglect ESC 1~6
+            /*       Home:      ESC[1~
+                     * End:       ESC[2~
+                     * Insert:    ESC[3~
+                     * Delete:    ESC[4~
+                     * Page up:   ESC[5~
+                     * Page down: ESC[6~
+                     * Direction key: ESC[A ~ ESC[D
+            */
+            if ( is_esc_pressed  == TRUE) {
+                is_esc_pressed = FALSE;
+                if ( '[' == ch ) {
+                    read(fdin,&ch,1);
+                    if (ch >= '1' && ch <= '6') {
+                        read(fdin,&ch,1);
+                    }
+                    if ( ch == 'A' || ch == 'D' || ch =='B' || ch == 'C')
+                        //read(fdin,&ch,1);
+                    continue;
+                }
+            }
 
 			if (char_cnt >= 98 || (ch == '\r') || (ch == '\n')) {
                 str[char_cnt] = '\n';
@@ -478,25 +509,27 @@ void shell_serial_read()
                  *
 				 * response string. */
                 break;
-			} else {
-            switch( ch )
-		    {
-    		        // press backspace
-		            case 0x7f :
-		                if (char_cnt > 0) {
-		                    char_cnt--;
-	    	                my_printf("\b \b");
-    		                continue;
-		                }
-		                break;
-		            // expected enter
-		            default :
-	    	            putc(ch);
-                        str[char_cnt] = ch;
-		                char_cnt++;
-		                break;
-		        }
-             }
+			} else if (ch == BACKSPACE) {
+    		    // press backspace
+		        if (char_cnt > 0) {
+		            char_cnt--;
+	    	        my_printf("\b \b");
+    		        continue;
+		         }
+            }else if(ch < 0x20) {
+                continue;
+            // the direction bottom is pressed
+            // refer to ANSI_escape_code
+            } else if (ESC == ch ) {
+                is_esc_pressed = TRUE;
+            } else {
+            //  General input
+                if ( char_cnt -2 <= 99 ) {
+	    	        putc(ch);
+                    str[char_cnt] = ch;
+		            char_cnt++;
+                }
+		    }
         } while(!done);
 
         cmd_proc(str,char_cnt);
@@ -592,7 +625,7 @@ static void ps_cmd()
 void cmd_proc(char* str, int char_cnt)
 {
     int i;
-    char cmd_buf[10]; // the array could be smaller
+    char cmd_buf[5];
     int ind_space =0; // index of the first space
     char *pecho = 0;
 
