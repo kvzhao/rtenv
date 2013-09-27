@@ -464,6 +464,7 @@ void shell_serial_read()
 	char ch;
     int done;
     int char_cnt; // character counts
+    char escbuf[3] = {0};
 
     fdout = mq_open("/tmp/mqueue/out", 0);
     fdin  = open("/dev/tty0/in", 0);
@@ -488,18 +489,15 @@ void shell_serial_read()
                      * Page down: ESC[6~
                      * Direction key: ESC[A ~ ESC[D
             */
-            if ( is_esc_pressed  == TRUE) {
-                is_esc_pressed = FALSE;
                 if ( '[' == ch ) {
                     read(fdin,&ch,1);
                     if (ch >= '1' && ch <= '6') {
                         read(fdin,&ch,1);
+                        continue;
                     }
-                    if ( ch == 'A' || ch == 'D' || ch =='B' || ch == 'C')
-                        //read(fdin,&ch,1);
-                    continue;
+                    if (ch >= 'A' && ch <='D'){
+                    }
                 }
-            }
 
 			if (char_cnt >= 98 || (ch == '\r') || (ch == '\n')) {
                 str[char_cnt] = '\n';
@@ -520,8 +518,6 @@ void shell_serial_read()
                 continue;
             // the direction bottom is pressed
             // refer to ANSI_escape_code
-            } else if (ESC == ch ) {
-                is_esc_pressed = TRUE;
             } else {
             //  General input
                 if ( char_cnt -2 <= 99 ) {
@@ -593,16 +589,6 @@ static void hello_cmd(void)
 
 static void echo_cmd()
 {
-    int fdout, fdin;
-    char str[100];
-    char ch;
-    int done;
-    int char_cnt; // character counts
-
-    fdout = mq_open("/tmp/mqueue/out", 0);
-    fdin  = open("/dev/tty0/in", 0);
-
-    read(fdin, &ch, 1);
 }
 
 static void ps_cmd()
@@ -649,7 +635,7 @@ void cmd_proc(char* str, int char_cnt)
              // Handling Echo
              if (shell_cmds[i].name == "echo"){
                 pecho = &str[ind_space];
-                my_printf("\r\n%s", pecho);
+                my_printf("\n\r%s", pecho);
              } else
                  // if the cmd follows message
                  if ( ind_space+1 != strlen(str) ){
