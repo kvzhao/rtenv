@@ -466,12 +466,12 @@ void shell_serial_read()
     int char_cnt; // character counts
     char escbuf[3] = {0};
 
+    char prev_cmd[20] ={0};
+
     fdout = mq_open("/tmp/mqueue/out", 0);
     fdin  = open("/dev/tty0/in", 0);
 
     my_printf("\r\nShell > ");
-
-    char is_esc_pressed = FALSE;
 
     while(1) {
         done = 0;
@@ -496,6 +496,10 @@ void shell_serial_read()
                         continue;
                     }
                     if (ch >= 'A' && ch <='D'){
+                        /*if ( ch == 'A')
+                            my_printf("\rShell >  %s",prev_cmd);
+                        */
+                        read(fdin,&ch,1); continue;
                     }
                 }
 
@@ -529,6 +533,7 @@ void shell_serial_read()
         } while(!done);
 
         cmd_proc(str,char_cnt);
+        memcpy(str,prev_cmd,char_cnt);
         // New Line
         my_printf("\n\rShell > ");
     }
