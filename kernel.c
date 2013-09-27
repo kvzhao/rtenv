@@ -380,58 +380,58 @@ void shell_serial_read()
     fdout = mq_open("/tmp/mqueue/out", 0);
     fdin  = open("/dev/tty0/in", 0);
 
+    my_printf("\r\nShell > ");
+
     while(1) {
         done = 0;
+        char_cnt = 0;
         do {
             // read a character
             read(fdin, &ch, 1);
 
-            switch( ch )
-            {
-                // press enter
-                case '\r' :
-//                    my_printf("\n\r");
-//                   putc('\n');
-                    putc('\r');
-                //    my_puts('\r');
-                    break;
-                // press backspace
-                case 0x7f :
-                    if ((char_cnt--) >0 ) {
-                        //my_printf("\b \b");
-                        putc('\b');
-                        putc(' ');
-                        putc('\b');
-//                        continue;
-                    }
-                    continue;
-                    break;
-                // expected enter
-                default :
-                    putc(ch);
-                    break;
-            }
-
-			/* If the byte is an end-of-line type character, then
-			 * finish the string and indicate we are done.
-			 */
 			if (char_cnt >= 98 || (ch == '\r') || (ch == '\n')) {
-                // str[char_cnt] = '\n';
-				str[char_cnt++] = '\0';
+                str[char_cnt] = '\n';
+				str[char_cnt+1] = '\0';
 				done = -1;
 				/* Otherwise, add the character to the
+                 *
 				 * response string. */
-			}
-			else {
-				str[char_cnt++] = ch;
-            }
+                break;
+			} else {
+            switch( ch )
+		    {
+		        // press enter
+		     /*
+		        case '\r' :
+	//                    my_printf("\n\r");
+	//                   putc('\n');
+		            putc('\r');
+		        //    my_puts('\r');
+		            break;
+		            */
+		        // press backspace
+		        case 0x7f :
+		            if (char_cnt > 0) {
+		                char_cnt--;
+		                my_printf("\b \b");
+		                continue;
+		            }
+		            break;
+		        // expected enter
+		        default :
+		            putc(ch);
+                    str[char_cnt] = ch;
+		            char_cnt++;
+		            break;
+		    }
+                    //str[char_cnt] = ch;
+                    //putc(str[char_cnt]);
+                }
 
         } while(!done);
         // command processing
-//        cmd_proc(str,char_cnt);
-
+        cmd_proc(str,char_cnt);
         // New Line
-        //my_print("\n\rShell > ");
         my_printf("\n\rShell > ");
     }
 }
@@ -445,8 +445,9 @@ struct cmd
 };
 
 // functions declaration
-//static void hello_cmd(void);
+static void hello_cmd(void);
 static void help_cmd(void);
+static void echo_cmd(void);
 // static void ps_cmd(void);
 typedef struct cmd cmd_t;
 
@@ -455,39 +456,59 @@ static cmd_t shell_cmds[] = {
         .name = "help",
         .disp = "This",
         .handler = help_cmd
+    },
+    {
+        .name = "echo",
+        .disp = "",
+        .handler = echo_cmd
+    },
+    {
+        .name = "hello",
+        .disp = "",
+        .handler = hello_cmd
     }
 };
 
 static void help_cmd( void )
 {
     int i;
-    my_print("\n\rrtenv provides commands:\n");
-    /*
+    my_printf("\n\rrtenv provides commands:");
+
     for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);++i ) {
-        my_print('\r');
-        my_print(shell_cmds[i].name);
-        my_print('\n');
-    }*/
+        my_printf(shell_cmds[i].name);
+        my_printf(", ");
+    }
+}
+
+static void hello_cmd(void)
+{
+    my_printf("\n\rThis is a simple shell");
+}
+
+static void echo_cmd()
+{
+
 }
 
 void cmd_proc(char* str, int char_cnt)
 {
     int i;
-    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);++i ) {
+    for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);i++ ) {
         // compare user's input string with shell commands' name
-        if ( strncmp(str, shell_cmds[i], strlen(shell_cmds[i].name)) == 0 ) {
-            if (str[strlen(shell_cmds[i].name)] != '\n' )
+        if ( strncmp(str, shell_cmds[i].name, strlen(shell_cmds[i].name)) == 0 ) {
+            if (str[strlen(shell_cmds[i].name)] != '\n' ) {
                 continue;
+            }
+            // Call function handle
             shell_cmds[i].handler();
             return;
         }
     }
-    my_printf("\rCommands not found.\n");
+    my_printf("\r\n\033[1;31mCommands not found.\033[0m");
 }
 
 void shell()
 {
-    my_printf("\r\nShell > ");
     shell_serial_read();
 }
 void first()
