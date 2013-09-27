@@ -172,12 +172,31 @@ void my_printf(const char *msg, ...)
 #define PRIORITY_DEFAULT 20
 #define PRIORITY_LIMIT (PRIORITY_DEFAULT * 2 - 1)
 
+// Task status
 #define TASK_READY      0
 #define TASK_WAIT_READ  1
 #define TASK_WAIT_WRITE 2
 #define TASK_WAIT_INTR  3
 #define TASK_WAIT_TIME  4
 
+static char* get_task_status(int tsk_status)
+{
+    switch ( tsk_status )
+    {
+        case TASK_READY:
+            return "Ready   ";
+        case TASK_WAIT_READ:
+            return "Wait Read";
+        case TASK_WAIT_WRITE:
+            return "Wait Write";
+        case TASK_WAIT_INTR:
+            return "Wait Intr";
+        case TASK_WAIT_TIME:
+            return "Wait Time";
+        default:
+            return "Unknown Situation";
+    }
+}
 #define S_IFIFO 1
 #define S_IMSGQ 2
 
@@ -215,6 +234,12 @@ struct task_control_block {
     struct task_control_block **prev;
     struct task_control_block  *next;
 };
+
+struct task_info {
+    struct task_control_block *tasks;
+    int *task_amounts;
+};
+static struct task_info gtask_info;
 
 /*
  * pathserver assumes that all files are FIFOs that were registered
@@ -504,7 +529,7 @@ struct cmd
 static void hello_cmd(void);
 static void help_cmd(void);
 static void echo_cmd(void);
-// static void ps_cmd(void);
+static void ps_cmd(void);
 typedef struct cmd cmd_t;
 
 static cmd_t shell_cmds[] = {
@@ -522,6 +547,11 @@ static cmd_t shell_cmds[] = {
         .name = "hello",
         .disp = "",
         .handler = hello_cmd
+    },
+    {
+        .name = "ps",
+        .disp = "process",
+        .handler = ps_cmd
     }
 };
 
@@ -544,6 +574,24 @@ static void hello_cmd(void)
 static void echo_cmd()
 {
 
+}
+
+static void ps_cmd()
+{
+    int i;
+    my_printf("\r\nList Processes");
+    if (! gtask_info.tasks)
+        return ;
+
+    /* Start list */
+    for (i = 0; i < *(gtask_info.task_amounts); i++) {
+        my_printf("\r\nPID: %d\tPriority: %d\tStatus: %s\t",
+                    gtask_info.tasks[i].pid,
+                    gtask_info.tasks[i].priority,
+                    get_task_status(gtask_info.tasks[i].status)
+                );
+//                    gtask_info.tasks[i].name);
+    }
 }
 
 void cmd_proc(char* str, int char_cnt)
@@ -896,6 +944,9 @@ int main()
 	tasks[task_count].pid = 0;
 	tasks[task_count].priority = PRIORITY_DEFAULT;
 	task_count++;
+
+    gtask_info.tasks = tasks;
+    gtask_info.task_amounts = &task_count;
 
 	/* Initialize all pipes */
 	for (i = 0; i < PIPE_LIMIT; i++)
