@@ -521,7 +521,7 @@ typedef void (*cmd_func_t)(void);
 struct cmd
 {
     const char *name; // the name user could call
-    const char *disp; // info display when command is called
+    const char *desc;// description
     cmd_func_t handler;
 };
 
@@ -535,22 +535,22 @@ typedef struct cmd cmd_t;
 static cmd_t shell_cmds[] = {
     {
         .name = "help",
-        .disp = "This",
+        .desc = "show the commands that kernel provides",
         .handler = help_cmd
     },
     {
         .name = "echo",
-        .disp = "",
+        .desc = "repeat the same string following echo",
         .handler = echo_cmd
     },
     {
         .name = "hello",
-        .disp = "",
+        .desc = "greeting",
         .handler = hello_cmd
     },
     {
         .name = "ps",
-        .disp = "process",
+        .desc = "list all the processes, id and priority",
         .handler = ps_cmd
     }
 };
@@ -558,28 +558,26 @@ static cmd_t shell_cmds[] = {
 static void help_cmd( void )
 {
     int i;
-    my_printf("\n\rrtenv provides commands:");
+    my_printf("\n\rrtenv provides 4 commands:");
 
     for ( i=0; i < sizeof(shell_cmds)/sizeof(cmd_t);++i ) {
-        my_printf(shell_cmds[i].name);
-        my_printf(", ");
+        my_printf("\r\n\t \033[1;32m%s\033[0m\t - %s",shell_cmds[i].name,shell_cmds[i].desc);
     }
 }
 
 static void hello_cmd(void)
 {
-    my_printf("\n\rThis is a simple shell");
+    my_printf("\n\r\033[1;35mHi, this is a simple shell, modified by kevin\033[0m");
 }
 
 static void echo_cmd()
 {
-
 }
 
 static void ps_cmd()
 {
     int i;
-    my_printf("\r\nList Processes");
+    my_printf("\r\nList the processes in the kernel");
     if (! gtask_info.tasks)
         return ;
 
@@ -590,7 +588,6 @@ static void ps_cmd()
                     gtask_info.tasks[i].priority,
                     get_task_status(gtask_info.tasks[i].status)
                 );
-//                    gtask_info.tasks[i].name);
     }
 }
 
